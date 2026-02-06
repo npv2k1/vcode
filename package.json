@@ -1,0 +1,184 @@
+{
+  "name": "vcode",
+  "displayName": "vcode",
+  "description": "macro automation and playground for VS Code",
+  "version": "0.0.1",
+  "publisher": "npv2k1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npv2k1/vcode"
+  },
+  "bugs": {
+    "url": "https://github.com/npv2k1/vcode/issues"
+  },
+  "homepage": "https://github.com/npv2k1/vcode#readme",
+  "keywords": [
+    "macro",
+    "automation",
+    "refactor",
+    "productivity",
+    "vscode"
+  ],
+  "icon": "resources/icon.png",
+  "engines": {
+    "vscode": "^1.106.1"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "snippets": [
+      {
+        "language": "javascript",
+        "path": "./snippets/macro.code-snippets"
+      }
+    ],
+    "commands": [
+      {
+        "command": "vcode.executeMacro",
+        "title": "Execute Macro"
+      },
+      {
+        "command": "vcode.addMacro",
+        "title": "Add Macro"
+      },
+      {
+        "command": "vcode.editMacro",
+        "title": "Edit Macro"
+      },
+      {
+        "command": "vcode.deleteMacro",
+        "title": "Delete Macro"
+      },
+      {
+        "command": "vcode.refreshMacros",
+        "title": "Refresh Macros",
+        "category": "VCode"
+      },
+      {
+        "command": "vcode.openMacroPlayground",
+        "title": "Open Macro Playground",
+        "category": "VCode"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "vcode.submenu",
+        "label": "vcode"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "vcode.submenu",
+          "group": "navigation"
+        }
+      ],
+      "vcode.submenu": [
+        {
+          "command": "vcode.executeMacro",
+          "group": "macro"
+        },
+        {
+          "command": "vcode.addMacro",
+          "group": "macro"
+        },
+        {
+          "command": "vcode.editMacro",
+          "group": "macro"
+        },
+        {
+          "command": "vcode.deleteMacro",
+          "group": "macro"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "type": "webview",
+          "id": "vcode.macroPlayground",
+          "name": "Macro Playground"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "VCode",
+      "properties": {
+        "vcode.macros": {
+          "type": "array",
+          "default": [],
+          "description": "User-defined macros for code transformation",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the macro"
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name of the macro"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of what the macro does"
+              },
+              "code": {
+                "type": "string",
+                "description": "JavaScript function code as a string"
+              },
+              "createdAt": {
+                "type": "number",
+                "description": "Timestamp when the macro was created"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "description",
+              "code",
+              "createdAt"
+            ]
+          }
+        },
+        "vcode.macro.directories": {
+          "type": "array",
+          "default": [
+            ".vscode/macro"
+          ],
+          "description": "List of directories to load macros from. Paths can be absolute or relative to the workspace root.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "pnpm run compile && pnpm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test",
+    "package": "vsce package -o ./vcode.vsix",
+    "vsce-publish": "vsce publish",
+    "deploy": "pnpm run compile && pnpm run vsce-publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.106.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.46.3",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}

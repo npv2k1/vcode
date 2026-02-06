@@ -1,0 +1,42 @@
+{
+    "VCode Macro Function": {
+        "prefix": "vmacro",
+        "body": [
+            "function transform(input, context) {",
+            "\t$0",
+            "\treturn input;",
+            "}"
+        ],
+        "description": "VCode macro function template"
+    },
+    "VCode Async Macro Function": {
+        "prefix": "vmacro-async",
+        "body": [
+            "async function transform(input, context) {",
+            "\t$0",
+            "\treturn input;",
+            "}"
+        ],
+        "description": "VCode async macro function template"
+    },
+    "VCode Macro with Parameters": {
+        "prefix": "vmacro-params",
+        "body": [
+            "function transform(input, context, ${1:param1}, ${2:param2}) {",
+            "\t$0",
+            "\treturn input;",
+            "}"
+        ],
+        "description": "VCode macro function with parameters"
+    },
+    "VCode Export Macro Function": {
+        "prefix": "vmacro-export",
+        "body": [
+            "export function transform(input, context) {",
+            "\t$0",
+            "\treturn input;",
+            "}"
+        ],
+        "description": "VCode export macro function for file-based macros"
+    }
+}
