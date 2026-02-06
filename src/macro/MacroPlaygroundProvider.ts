@@ -82,10 +82,10 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
         webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
                 case 'runMacro':
-                    this.runMacro(data.code, data.input, webview);
+                    this.runMacro(data.code, data.input, data.runtime, webview);
                     break;
                 case 'saveMacro':
-                    await this.saveMacro(data.name, data.code, webview);
+                    await this.saveMacro(data.name, data.code, data.runtime, webview);
                     break;
                 case 'loadMacros':
                     this.sendMacrosToWebview(webview);
@@ -183,6 +183,14 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
             <input type="text" id="macroName" placeholder="My Macro" style="width: 100%; padding: 5px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border);">
         </div>
 
+        <div class="section">
+            <label>Runtime:</label>
+            <select id="macroRuntime">
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+            </select>
+        </div>
+
         <div class="section" style="flex-grow: 1;">
             <label>Macro Code:</label>
             <textarea id="codeEditor" style="height: 150px;">function transform(input) {
@@ -213,6 +221,7 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
         const macroSelect = document.getElementById('macroSelect');
         const btnLoad = document.getElementById('btnLoad');
         const macroName = document.getElementById('macroName');
+        const macroRuntime = document.getElementById('macroRuntime');
         const codeEditor = document.getElementById('codeEditor');
         const inputEditor = document.getElementById('inputEditor');
         const btnRun = document.getElementById('btnRun');
@@ -234,7 +243,8 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({
                 type: 'runMacro',
                 code: codeEditor.value,
-                input: inputEditor.value
+                input: inputEditor.value,
+                runtime: macroRuntime.value
             });
         });
 
@@ -248,7 +258,8 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({
                 type: 'saveMacro',
                 name: name,
-                code: codeEditor.value
+                code: codeEditor.value,
+                runtime: macroRuntime.value
             });
         });
 
@@ -261,13 +272,19 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
                     message.macros.forEach(m => {
                         const option = document.createElement('option');
                         option.value = m.id;
-                        option.textContent = m.name + (m.id.startsWith('file-') ? ' (File)' : '');
+                        const runtimeLabel = m.runtime === 'python' ? 'Py' : 'JS';
+                        option.textContent = m.name + ' (' + runtimeLabel + ')' + (m.id.startsWith('file-') ? ' (File)' : '');
                         macroSelect.appendChild(option);
                     });
                     break;
                 case 'setMacroContent':
                     codeEditor.value = message.code;
                     macroName.value = message.name;
+                    if (message.runtime) {
+                        macroRuntime.value = message.runtime;
+                    } else {
+                        macroRuntime.value = 'javascript';
+                    }
                     break;
                 case 'executionResult':
                     if (message.success) {
@@ -293,7 +310,10 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
     }
 
     private sendMacrosToWebview(webview: vscode.Webview) {
-        const macros = this._macroManager.getMacros();
+        const macros = this._macroManager.getMacros().map(macro => ({
+            ...macro,
+            runtime: macro.runtime ?? (macro.filePath && macro.filePath.toLowerCase().endsWith('.py') ? 'python' : 'javascript')
+        }));
         webview.postMessage({ type: 'updateMacros', macros });
     }
 
@@ -303,19 +323,21 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
             webview.postMessage({
                 type: 'setMacroContent',
                 code: macro.code,
-                name: macro.name
+                name: macro.name,
+                runtime: macro.runtime ?? (macro.filePath && macro.filePath.toLowerCase().endsWith('.py') ? 'python' : 'javascript')
             });
         }
     }
 
-    private async runMacro(code: string, input: string, webview: vscode.Webview) {
+    private async runMacro(code: string, input: string, runtime: string | undefined, webview: vscode.Webview) {
         // Create a temporary macro object
         const tempMacro: Macro = {
             id: 'temp',
             name: 'Temp',
             description: 'Temp',
             code: code,
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            runtime: runtime === 'python' ? 'python' : 'javascript'
         };
 
         const result = await this._macroExecutor.execute(tempMacro, {
@@ -331,7 +353,7 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
         });
     }
 
-    private async saveMacro(name: string, code: string, webview: vscode.Webview) {
+    private async saveMacro(name: string, code: string, runtime: string | undefined, webview: vscode.Webview) {
         try {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
@@ -344,11 +366,12 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
             }
 
             // Sanitize filename
-            const filename = name.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.js';
+            const extension = runtime === 'python' ? '.py' : '.js';
+            const filename = name.replace(/[^a-z0-9]/gi, '_').toLowerCase() + extension;
             const filePath = path.join(macroDir, filename);
 
             let fileContent = code;
-            if (!code.includes('export function')) {
+            if (extension === '.js' && !code.includes('export function')) {
                 if (code.trim().startsWith('function')) {
                     fileContent = 'export ' + code;
                 } else {

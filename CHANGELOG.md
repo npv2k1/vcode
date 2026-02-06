@@ -6,7 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-02-06
+
 - Documentation and metadata cleanup.
+- Add Python macro execution support.
+- Add Python macro snippets and default to python3 interpreter fallback.
 
 ## [0.0.1] - 2026-02-05
 

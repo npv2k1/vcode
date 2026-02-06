@@ -69,28 +69,32 @@ export class MacroManager {
                 name: 'Uppercase',
                 description: 'Convert text to uppercase',
                 code: 'function transform(input) { return input.toUpperCase(); }',
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                runtime: 'javascript'
             },
             {
                 id: this.generateId(),
                 name: 'Lowercase',
                 description: 'Convert text to lowercase',
                 code: 'function transform(input) { return input.toLowerCase(); }',
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                runtime: 'javascript'
             },
             {
                 id: this.generateId(),
                 name: 'Remove Whitespace',
                 description: 'Remove all whitespace from code',
                 code: 'function transform(input) { return input.replace(/\\s+/g, " ").trim(); }',
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                runtime: 'javascript'
             },
             {
                 id: this.generateId(),
                 name: 'Sort Lines',
                 description: 'Sort lines alphabetically',
                 code: 'function transform(input) { return input.split("\\n").sort().join("\\n"); }',
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                runtime: 'javascript'
             }
         ];
     }
@@ -118,7 +122,8 @@ export class MacroManager {
             name,
             description,
             code,
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            runtime: 'javascript'
         };
 
         this.macros.push(macro);

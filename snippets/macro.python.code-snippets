@@ -1,0 +1,20 @@
+{
+    "VCode Python Macro Function": {
+        "prefix": "vmacro-py",
+        "body": [
+            "def transform(input, context, *args):",
+            "\t$0",
+            "\treturn input"
+        ],
+        "description": "VCode Python macro function template"
+    },
+    "VCode Python Macro With Params": {
+        "prefix": "vmacro-py-params",
+        "body": [
+            "def transform(input, context, ${1:param1}, ${2:param2}):",
+            "\t$0",
+            "\treturn input"
+        ],
+        "description": "VCode Python macro function with parameters"
+    }
+}

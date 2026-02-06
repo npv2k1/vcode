@@ -47,7 +47,9 @@ export function registerMacroCommands(
             const input = selection.isEmpty ? document.getText() : document.getText(selection);
 
             // Extract parameters from macro code (automatically skips 'input' and 'context')
-            const paramNames = macroExecutor.extractParameters(selected.macro.code);
+            const isPythonMacro = selected.macro.runtime === 'python'
+                || (selected.macro.filePath && selected.macro.filePath.toLowerCase().endsWith('.py'));
+            const paramNames = isPythonMacro ? [] : macroExecutor.extractParameters(selected.macro.code);
             const paramValues: any[] = [];
 
             // Prompt for each additional parameter (input and context are auto-provided)

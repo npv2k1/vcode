@@ -1,8 +1,8 @@
 {
-  "name": "vcode",
+  "name": "vcode-macro",
   "displayName": "vcode",
   "description": "macro automation and playground for VS Code",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "npv2k1",
   "license": "MIT",
   "repository": {
@@ -36,6 +36,10 @@
       {
         "language": "javascript",
         "path": "./snippets/macro.code-snippets"
+      },
+      {
+        "language": "python",
+        "path": "./snippets/macro.python.code-snippets"
       }
     ],
     "commands": [
@@ -98,8 +102,17 @@
         }
       ]
     },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vcode-activity-bar",
+          "title": "VCode",
+          "icon": "resources/vcode-icon.svg"
+        }
+      ]
+    },
     "views": {
-      "explorer": [
+      "vcode-activity-bar": [
         {
           "type": "webview",
           "id": "vcode.macroPlayground",
@@ -131,7 +144,15 @@
               },
               "code": {
                 "type": "string",
-                "description": "JavaScript function code as a string"
+                "description": "Macro code as a string"
+              },
+              "runtime": {
+                "type": "string",
+                "enum": [
+                  "javascript",
+                  "python"
+                ],
+                "description": "Runtime used to execute the macro (defaults to javascript)"
               },
               "createdAt": {
                 "type": "number",
@@ -156,6 +177,16 @@
           "items": {
             "type": "string"
           }
+        },
+        "vcode.macro.globals": {
+          "type": "object",
+          "default": {},
+          "description": "Global variables available to macros via context.globals."
+        },
+        "vcode.macro.python.path": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the Python interpreter used for Python macros. If empty, VCode uses the Python extension's default interpreter or falls back to 'python3' on PATH."
         }
       }
     }

@@ -40,23 +40,50 @@ You can configure VCode settings in your `.vscode/settings.json` or User Setting
 {
   "vcode.macro.directories": [
     ".vscode/macro"
-  ]
+  ],
+  "vcode.macro.globals": {
+    "author": "Ada Lovelace",
+    "apiBase": "https://example.com"
+  },
+  "vcode.macro.python.path": "/path/to/venv/bin/python3"
 }
 ```
 
 ## Writing Macros
 
-Macros are written in JavaScript and should export a single function. The function receives a `context` object and should return a string.
+Macros can be written in **JavaScript** or **Python**. Both should return a string result.
 
 **Context Object:**
 
 - `input`: Selected text, or the entire document if nothing is selected.
 - `languageId`: VS Code language ID (example: `typescript`).
 - `filePath`: Absolute path of the active file.
+- `globals`: Global variables from `vcode.macro.globals`.
+
+### JavaScript Macros
+
+JavaScript macros should define a `transform` function.
+
+```javascript
+function transform(input, context) {
+  return input.toUpperCase();
+}
+```
+
+### Python Macros
+
+Python macros are `.py` files in `.vscode/macro` and must define `transform(input, context, *args)`.
+
+```python
+def transform(input, context, *args):
+    return input.upper()
+```
+
+Python macros run with the configured interpreter. Set `vcode.macro.python.path` if you need a specific virtualenv or interpreter. If unset, VCode uses the Python extension's default interpreter or falls back to `python3`.
 
 ## Macro Playground
 
-Open **Macro Playground** from the Command Palette to run code quickly, save new macros, and load existing ones without leaving the editor.
+Open **Macro Playground** from the Command Palette to run code quickly, save new macros, and load existing ones without leaving the editor. You can choose the runtime (JavaScript or Python) before running or saving.
 
 ## Privacy
 

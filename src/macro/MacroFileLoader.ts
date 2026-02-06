@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Macro } from './types';
+import { Macro, MacroRuntime } from './types';
 import { MacroManager } from './MacroManager';
 
 export class MacroFileLoader {
@@ -97,15 +97,18 @@ export class MacroFileLoader {
                 await this.loadAllMacros(fullPath);
 
                 // Watch for changes
-                const watcher = vscode.workspace.createFileSystemWatcher(
-                    new vscode.RelativePattern(fullPath, '*.js')
-                );
+                const patterns = ['*.js', '*.py'];
+                for (const pattern of patterns) {
+                    const watcher = vscode.workspace.createFileSystemWatcher(
+                        new vscode.RelativePattern(fullPath, pattern)
+                    );
 
-                watcher.onDidCreate(uri => this.loadMacroFromFile(uri));
-                watcher.onDidChange(uri => this.loadMacroFromFile(uri));
-                watcher.onDidDelete(uri => this.removeMacroFromFile(uri));
+                    watcher.onDidCreate(uri => this.loadMacroFromFile(uri));
+                    watcher.onDidChange(uri => this.loadMacroFromFile(uri));
+                    watcher.onDidDelete(uri => this.removeMacroFromFile(uri));
 
-                this.watchers.push(watcher);
+                    this.watchers.push(watcher);
+                }
             }
         }
     }
@@ -117,7 +120,7 @@ export class MacroFileLoader {
 
         const files = fs.readdirSync(dirPath);
         for (const file of files) {
-            if (file.endsWith('.js')) {
+            if (file.endsWith('.js') || file.endsWith('.py')) {
                 const uri = vscode.Uri.file(path.join(dirPath, file));
                 await this.loadMacroFromFile(uri);
             }
@@ -127,32 +130,38 @@ export class MacroFileLoader {
     private async loadMacroFromFile(uri: vscode.Uri) {
         try {
             const content = await fs.promises.readFile(uri.fsPath, 'utf8');
-            const filename = path.basename(uri.fsPath, '.js');
+            const extension = path.extname(uri.fsPath).toLowerCase();
+            const filename = path.basename(uri.fsPath, extension);
+            const id = `file-${path.basename(uri.fsPath)}`;
+            const runtime: MacroRuntime = extension === '.py' ? 'python' : 'javascript';
 
             // Extract function body from "export function transform(text) { ... }"
             // or simple function definition
             let code = content;
 
-            // Simple parsing to extract body if it matches the expected pattern
-            const exportMatch = content.match(/export\s+function\s+transform\s*\([^)]*\)\s*{([\s\S]*)}/);
-            if (exportMatch) {
-                // We wrap it back in a standard function format for our executor
-                // The executor expects "function transform(input) { ... }" or just the body?
-                // Looking at MacroExecutor, it wraps code in a function constructor.
-                // It expects the code to define a 'transform' function.
+            if (runtime === 'javascript') {
+                // Simple parsing to extract body if it matches the expected pattern
+                const exportMatch = content.match(/export\s+function\s+transform\s*\([^)]*\)\s*{([\s\S]*)}/);
+                if (exportMatch) {
+                    // We wrap it back in a standard function format for our executor
+                    // The executor expects "function transform(input) { ... }" or just the body?
+                    // Looking at MacroExecutor, it wraps code in a function constructor.
+                    // It expects the code to define a 'transform' function.
 
-                // So we can just use the content, but we need to strip 'export' keyword
-                // because 'export' is not valid inside new Function()
-                code = content.replace(/export\s+function/, 'function');
+                    // So we can just use the content, but we need to strip 'export' keyword
+                    // because 'export' is not valid inside new Function()
+                    code = content.replace(/export\s+function/, 'function');
+                }
             }
 
             const macro: Macro = {
-                id: `file-${filename}`,
+                id,
                 name: filename,
                 description: `Loaded from ${path.basename(uri.fsPath)}`,
                 code: code,
                 createdAt: Date.now(),
-                filePath: uri.fsPath
+                filePath: uri.fsPath,
+                runtime
             };
 
             this.macroManager.registerFileMacro(macro);
@@ -162,8 +171,8 @@ export class MacroFileLoader {
     }
 
     private removeMacroFromFile(uri: vscode.Uri) {
-        const filename = path.basename(uri.fsPath, '.js');
-        this.macroManager.unregisterFileMacro(`file-${filename}`);
+        const id = `file-${path.basename(uri.fsPath)}`;
+        this.macroManager.unregisterFileMacro(id);
     }
 
     dispose() {
