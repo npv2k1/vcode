@@ -1,10 +1,10 @@
 # VCode Macro Guide
 
-Macros in VCode allow you to automate complex text transformations using JavaScript or Python. This guide covers how to write, save, and use macros effectively.
+Macros in VCode allow you to automate complex text transformations using JavaScript, Python, or Perl. This guide covers how to write, save, and use macros effectively.
 
 ## Macro Structure
 
-A macro is a function that takes the input text and a `context` object, and returns a string (the transformed code). JavaScript and Python macros follow the same shape.
+JavaScript and Python macros are functions that take the input text and a `context` object, and return a string (the transformed code). Perl macros are standalone programs that read input from stdin and write the transformed output to stdout.
 
 ### Basic Syntax (JavaScript)
 
@@ -26,6 +26,17 @@ def transform(input, context, *args):
     return input.upper()
 ```
 
+### Basic Syntax (Perl)
+
+```perl
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+local $/;
+my $input = <STDIN> // q{};
+print $input;
+```
 ### The `context` Object
 
 The `context` object passed to your macro contains the following properties:
@@ -37,6 +48,14 @@ The `context` object passed to your macro contains the following properties:
 | `filePath` | `string` | The absolute file path of the active document. |
 | `globals` | `object` | Global variables from `vcode.macro.globals` settings. |
 
+For Perl macros, the context is available through environment variables:
+
+- `VCODE_LANGUAGE_ID`
+- `VCODE_FILE_PATH`
+- `VCODE_GLOBALS_JSON`
+- `VCODE_CONTEXT_JSON`
+- `VCODE_PARAMS_JSON`
+Note: `VCODE_CONTEXT_JSON` includes metadata (languageId, filePath, globals). The input text is provided via stdin.
 ### Global Variables
 
 You can define global variables in settings and access them in any macro via `context.globals`.
@@ -108,10 +127,10 @@ function transform(input, context) {
 5. Save.
 
 ### Loading from Files
-VCode automatically loads `.js` and `.py` files from the `.vscode/macro` directory in your workspace.
+VCode automatically loads `.js`, `.py`, and `.pl` files from the `.vscode/macro` directory in your workspace.
 1. Create a folder `.vscode/macro`.
-2. Create a file, e.g., `my-macro.js` or `my-macro.py`.
-3. Define a `transform` function.
+2. Create a file, e.g., `my-macro.js`, `my-macro.py`, or `my-macro.pl`.
+3. Define a `transform` function (JavaScript/Python) or a standalone program (Perl).
 4. Run `VCode: Refresh Macros` to load it.
 
 The file name will be used as the macro name.
@@ -120,6 +139,9 @@ The file name will be used as the macro name.
 
 Python macros run using the configured interpreter. If you use a virtual environment, set `vcode.macro.python.path` to the interpreter path so your installed libraries are available. If unset, VCode uses the Python extension's default interpreter or falls back to `python3`.
 
+## Perl Interpreter
+
+Perl macros run using the configured Perl interpreter. If needed, set `vcode.macro.perl.path` to the `perl` binary path. If unset, VCode uses `perl` from PATH.
 ## Best Practices
 - **Error Handling:** Wrap your macro logic in `try-catch` blocks to prevent breaking the extension if the macro fails.
 - **Idempotency:** Try to make macros safe to run multiple times (e.g., check if code is already wrapped before wrapping again).

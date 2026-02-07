@@ -97,7 +97,7 @@ export class MacroFileLoader {
                 await this.loadAllMacros(fullPath);
 
                 // Watch for changes
-                const patterns = ['*.js', '*.py'];
+                const patterns = ['*.js', '*.py', '*.pl'];
                 for (const pattern of patterns) {
                     const watcher = vscode.workspace.createFileSystemWatcher(
                         new vscode.RelativePattern(fullPath, pattern)
@@ -120,7 +120,7 @@ export class MacroFileLoader {
 
         const files = fs.readdirSync(dirPath);
         for (const file of files) {
-            if (file.endsWith('.js') || file.endsWith('.py')) {
+            if (file.endsWith('.js') || file.endsWith('.py') || file.endsWith('.pl')) {
                 const uri = vscode.Uri.file(path.join(dirPath, file));
                 await this.loadMacroFromFile(uri);
             }
@@ -133,7 +133,12 @@ export class MacroFileLoader {
             const extension = path.extname(uri.fsPath).toLowerCase();
             const filename = path.basename(uri.fsPath, extension);
             const id = `file-${path.basename(uri.fsPath)}`;
-            const runtime: MacroRuntime = extension === '.py' ? 'python' : 'javascript';
+            let runtime: MacroRuntime = 'javascript';
+            if (extension === '.py') {
+                runtime = 'python';
+            } else if (extension === '.pl') {
+                runtime = 'perl';
+            }
 
             // Extract function body from "export function transform(text) { ... }"
             // or simple function definition

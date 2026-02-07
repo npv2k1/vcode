@@ -1,0 +1,16 @@
+{
+    "VCode Perl Macro Script": {
+        "prefix": "vmacro-pl",
+        "body": [
+            "#!/usr/bin/env perl",
+            "use strict;",
+            "use warnings;",
+            "",
+            "local $/;",
+            "my \\$input = <STDIN> // '';",
+            "$0",
+            "print \\$input;"
+        ],
+        "description": "VCode Perl macro script template"
+    }
+}

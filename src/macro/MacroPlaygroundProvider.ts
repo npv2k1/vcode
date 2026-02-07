@@ -188,6 +188,7 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
             <select id="macroRuntime">
                 <option value="javascript">JavaScript</option>
                 <option value="python">Python</option>
+                <option value="perl">Perl</option>
             </select>
         </div>
 
@@ -228,6 +229,16 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
         const btnSave = document.getElementById('btnSave');
         const output = document.getElementById('output');
 
+        const templates = {
+            javascript: 'function transform(input, context) {\\n    return input;\\n}',
+            python: 'def transform(input, context, *args):\\n    return input',
+            perl: '#!/usr/bin/env perl\\nuse strict;\\nuse warnings;\\n\\nlocal $/;\\nmy $input = <STDIN> // q{};\\nprint $input;\\n'
+        };
+        let lastRuntime = macroRuntime.value;
+
+        if (codeEditor.value.trim().length === 0) {
+            codeEditor.value = templates[lastRuntime] || codeEditor.value;
+        }
         // Initial Load
         vscode.postMessage({ type: 'loadMacros' });
 
@@ -272,7 +283,11 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
                     message.macros.forEach(m => {
                         const option = document.createElement('option');
                         option.value = m.id;
-                        const runtimeLabel = m.runtime === 'python' ? 'Py' : 'JS';
+                        const runtimeLabel = m.runtime === 'python'
+                            ? 'Py'
+                            : m.runtime === 'perl'
+                                ? 'Pl'
+                                : 'JS';
                         option.textContent = m.name + ' (' + runtimeLabel + ')' + (m.id.startsWith('file-') ? ' (File)' : '');
                         macroSelect.appendChild(option);
                     });
@@ -309,10 +324,25 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
 </html>`;
     }
 
+    private inferRuntime(macro: Macro): string {
+        if (macro.runtime) {
+            return macro.runtime;
+        }
+        if (macro.filePath) {
+            const extension = path.extname(macro.filePath).toLowerCase();
+            if (extension === '.py') {
+                return 'python';
+            }
+            if (extension === '.pl') {
+                return 'perl';
+            }
+        }
+        return 'javascript';
+    }
     private sendMacrosToWebview(webview: vscode.Webview) {
         const macros = this._macroManager.getMacros().map(macro => ({
             ...macro,
-            runtime: macro.runtime ?? (macro.filePath && macro.filePath.toLowerCase().endsWith('.py') ? 'python' : 'javascript')
+            runtime: this.inferRuntime(macro)
         }));
         webview.postMessage({ type: 'updateMacros', macros });
     }
@@ -324,12 +354,15 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
                 type: 'setMacroContent',
                 code: macro.code,
                 name: macro.name,
-                runtime: macro.runtime ?? (macro.filePath && macro.filePath.toLowerCase().endsWith('.py') ? 'python' : 'javascript')
+                runtime: this.inferRuntime(macro)
             });
         }
     }
 
     private async runMacro(code: string, input: string, runtime: string | undefined, webview: vscode.Webview) {
+        const normalizedRuntime = runtime === 'python' || runtime === 'perl'
+            ? runtime
+            : 'javascript';
         // Create a temporary macro object
         const tempMacro: Macro = {
             id: 'temp',
@@ -337,7 +370,7 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
             description: 'Temp',
             code: code,
             createdAt: Date.now(),
-            runtime: runtime === 'python' ? 'python' : 'javascript'
+            runtime: normalizedRuntime
         };
 
         const result = await this._macroExecutor.execute(tempMacro, {
@@ -366,7 +399,11 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
             }
 
             // Sanitize filename
-            const extension = runtime === 'python' ? '.py' : '.js';
+            const extension = runtime === 'python'
+                ? '.py'
+                : runtime === 'perl'
+                    ? '.pl'
+                    : '.js';
             const filename = name.replace(/[^a-z0-9]/gi, '_').toLowerCase() + extension;
             const filePath = path.join(macroDir, filename);
 

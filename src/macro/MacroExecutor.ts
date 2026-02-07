@@ -28,6 +28,9 @@ export class MacroExecutor {
             if (runtime === 'python') {
                 return await this.executePythonMacro(macro, executionContext, params);
             }
+            if (runtime === 'perl') {
+                return await this.executePerlMacro(macro, executionContext, params);
+            }
 
             // Create a sandboxed function from the macro code
             const transformFunction = this.createSandboxedFunction(macro.code);
@@ -110,13 +113,28 @@ export class MacroExecutor {
             return macro.runtime;
         }
 
-        if (macro.filePath && macro.filePath.toLowerCase().endsWith('.py')) {
-            return 'python';
+        if (macro.filePath) {
+            const extension = path.extname(macro.filePath).toLowerCase();
+            if (extension === '.py') {
+                return 'python';
+            }
+            if (extension === '.pl') {
+                return 'perl';
+            }
         }
 
         return 'javascript';
     }
 
+    private getPerlPath(): string {
+        const config = vscode.workspace.getConfiguration('vcode');
+        const configured = config.get<string>('macro.perl.path');
+        if (configured && configured.trim().length > 0) {
+            return configured;
+        }
+
+        return 'perl';
+    }
     private getPythonPath(): string {
         const config = vscode.workspace.getConfiguration('vcode');
         const configured = config.get<string>('macro.python.path');
@@ -286,6 +304,195 @@ export class MacroExecutor {
                     });
                 }
             });
+        } finally {
+            if (cleanup) {
+                await cleanup();
+            }
+        }
+    }
+
+    private async ensureExternalMacroFile(
+        macro: Macro,
+        extension: string,
+        runtimeLabel: string
+    ): Promise<{ filePath: string; cleanup?: () => Promise<void> }> {
+        if (macro.filePath) {
+            return { filePath: macro.filePath };
+        }
+
+        if (!macro.code || macro.code.trim().length === 0) {
+            throw new Error(`${runtimeLabel} macro requires a file path or inline code`);
+        }
+
+        const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'vcode-macro-'));
+        const filePath = path.join(tempDir, `macro${extension}`);
+        await fs.promises.writeFile(filePath, macro.code, 'utf8');
+
+        return {
+            filePath,
+            cleanup: async () => {
+                await fs.promises.rm(tempDir, { recursive: true, force: true });
+            }
+        };
+    }
+
+    private buildExternalMacroEnv(context: MacroExecutionContext, params: any[]): NodeJS.ProcessEnv {
+        let contextJson = '{}';
+        let globalsJson = '{}';
+        let paramsJson = '[]';
+
+        try {
+            const contextMeta = {
+                languageId: context.languageId,
+                filePath: context.filePath,
+                globals: context.globals ?? {}
+            };
+            contextJson = JSON.stringify(contextMeta);
+        } catch {
+            contextJson = '{}';
+        }
+
+        try {
+            globalsJson = JSON.stringify(context.globals ?? {});
+        } catch {
+            globalsJson = '{}';
+        }
+
+        try {
+            paramsJson = JSON.stringify(params ?? []);
+        } catch {
+            paramsJson = '[]';
+        }
+
+        return {
+            ...process.env,
+            VCODE_LANGUAGE_ID: context.languageId ?? '',
+            VCODE_FILE_PATH: context.filePath ?? '',
+            VCODE_CONTEXT_JSON: contextJson,
+            VCODE_GLOBALS_JSON: globalsJson,
+            VCODE_PARAMS_JSON: paramsJson
+        };
+    }
+
+    private async runProcess(
+        command: string,
+        args: string[],
+        input: string,
+        cwd: string | undefined,
+        env: NodeJS.ProcessEnv,
+        formatSpawnError: (error: unknown) => string
+    ): Promise<{ success: boolean; stdout: string; stderr: string; error?: string }> {
+        return await new Promise(resolve => {
+            let settled = false;
+            const finish = (result: { success: boolean; stdout: string; stderr: string; error?: string }) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                resolve(result);
+            };
+
+            const child = spawn(command, args, { cwd, env });
+            let stdout = '';
+            let stderr = '';
+
+            child.stdout.setEncoding('utf8');
+            child.stderr.setEncoding('utf8');
+
+            child.stdout.on('data', data => {
+                stdout += data;
+            });
+
+            child.stderr.on('data', data => {
+                stderr += data;
+            });
+
+            child.on('error', error => {
+                finish({
+                    success: false,
+                    stdout,
+                    stderr,
+                    error: formatSpawnError(error)
+                });
+            });
+
+            child.on('close', code => {
+                if (code === null) {
+                    finish({
+                        success: false,
+                        stdout,
+                        stderr,
+                        error: stderr.trim() || `${command} process terminated unexpectedly`
+                    });
+                    return;
+                }
+
+                if (code !== 0) {
+                    finish({
+                        success: false,
+                        stdout,
+                        stderr,
+                        error: stderr.trim() || `${command} exited with code ${code}`
+                    });
+                    return;
+                }
+
+                finish({ success: true, stdout, stderr });
+            });
+
+            try {
+                if (input.length > 0) {
+                    child.stdin.write(input);
+                }
+                child.stdin.end();
+            } catch (error) {
+                finish({
+                    success: false,
+                    stdout,
+                    stderr,
+                    error: `Failed to send input to ${command}: ${error instanceof Error ? error.message : String(error)}`
+                });
+            }
+        });
+    }
+
+    private formatPerlSpawnError(perlPath: string, error: unknown): string {
+        if (error && typeof error === 'object' && 'code' in error) {
+            const code = (error as { code?: string }).code;
+            if (code === 'ENOENT') {
+                return `Perl interpreter not found. Configure "vcode.macro.perl.path" or ensure "${perlPath}" is on PATH.`;
+            }
+        }
+
+        return `Failed to run Perl macro: ${error instanceof Error ? error.message : String(error)}`;
+    }
+
+    private async executePerlMacro(
+        macro: Macro,
+        context: MacroExecutionContext,
+        params: any[]
+    ): Promise<MacroExecutionResult> {
+        const { filePath, cleanup } = await this.ensureExternalMacroFile(macro, '.pl', 'Perl');
+        try {
+            const perlPath = this.getPerlPath();
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const cwd = workspaceRoot ?? path.dirname(filePath);
+            const env = this.buildExternalMacroEnv(context, params);
+
+            const result = await this.runProcess(
+                perlPath,
+                [filePath],
+                context.input,
+                cwd,
+                env,
+                (error) => this.formatPerlSpawnError(perlPath, error)
+            );
+
+            if (!result.success) {
+                return { success: false, error: result.error ?? 'Perl macro failed' };
+            }
+
+            return { success: true, output: result.stdout };
         } finally {
             if (cleanup) {
                 await cleanup();

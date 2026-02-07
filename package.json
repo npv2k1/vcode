@@ -40,6 +40,10 @@
       {
         "language": "python",
         "path": "./snippets/macro.python.code-snippets"
+      },
+      {
+        "language": "perl",
+        "path": "./snippets/macro.perl.code-snippets"
       }
     ],
     "commands": [
@@ -150,7 +154,8 @@
                 "type": "string",
                 "enum": [
                   "javascript",
-                  "python"
+                  "python",
+                  "perl"
                 ],
                 "description": "Runtime used to execute the macro (defaults to javascript)"
               },
@@ -187,6 +192,11 @@
           "type": "string",
           "default": "",
           "description": "Absolute path to the Python interpreter used for Python macros. If empty, VCode uses the Python extension's default interpreter or falls back to 'python3' on PATH."
+        },
+        "vcode.macro.perl.path": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the Perl interpreter used for Perl macros. If empty, VCode uses 'perl' on PATH."
         }
       }
     }

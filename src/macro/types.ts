@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 /**
  * Represents a macro definition
  */
-export type MacroRuntime = 'javascript' | 'python';
+export type MacroRuntime = 'javascript' | 'python' | 'perl';
 
 export interface Macro {
     /** Unique identifier for the macro */
@@ -12,7 +12,7 @@ export interface Macro {
     name: string;
     /** Description of what the macro does */
     description: string;
-    /** Macro code as a string (JavaScript or Python) */
+    /** Macro code as a string (JavaScript, Python, or Perl) */
     code: string;
     /** Macro runtime (defaults to javascript) */
     runtime?: MacroRuntime;

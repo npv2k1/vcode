@@ -47,9 +47,20 @@ export function registerMacroCommands(
             const input = selection.isEmpty ? document.getText() : document.getText(selection);
 
             // Extract parameters from macro code (automatically skips 'input' and 'context')
-            const isPythonMacro = selected.macro.runtime === 'python'
-                || (selected.macro.filePath && selected.macro.filePath.toLowerCase().endsWith('.py'));
-            const paramNames = isPythonMacro ? [] : macroExecutor.extractParameters(selected.macro.code);
+            const runtime = selected.macro.runtime ?? (() => {
+                if (!selected.macro.filePath) {
+                    return 'javascript';
+                }
+                const lowerPath = selected.macro.filePath.toLowerCase();
+                if (lowerPath.endsWith('.py')) {
+                    return 'python';
+                }
+                if (lowerPath.endsWith('.pl')) {
+                    return 'perl';
+                }
+                return 'javascript';
+            })();
+            const paramNames = runtime === 'javascript' ? macroExecutor.extractParameters(selected.macro.code) : [];
             const paramValues: any[] = [];
 
             // Prompt for each additional parameter (input and context are auto-provided)
