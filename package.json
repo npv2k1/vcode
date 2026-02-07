@@ -2,7 +2,7 @@
   "name": "vcode-macro",
   "displayName": "vcode",
   "description": "macro automation and playground for VS Code",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "npv2k1",
   "license": "MIT",
   "repository": {
