@@ -288,7 +288,12 @@ export class MacroPlaygroundProvider implements vscode.WebviewViewProvider {
                             : m.runtime === 'perl'
                                 ? 'Pl'
                                 : 'JS';
-                        option.textContent = m.name + ' (' + runtimeLabel + ')' + (m.id.startsWith('file-') ? ' (File)' : '');
+                        const sourceLabel = m.source === 'builtin'
+                            ? ' (Built-in)'
+                            : m.source === 'file' || m.id.startsWith('file-')
+                                ? ' (File)'
+                                : '';
+                        option.textContent = m.name + ' (' + runtimeLabel + ')' + sourceLabel;
                         macroSelect.appendChild(option);
                     });
                     break;

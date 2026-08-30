@@ -4,6 +4,8 @@ import { MacroExecutor } from './macro/MacroExecutor';
 import { registerMacroCommands } from './macro/macroCommands';
 import { MacroFileLoader } from './macro/MacroFileLoader';
 import { MacroPlaygroundProvider } from './macro/MacroPlaygroundProvider';
+import { BuiltinMacroLibrary } from './macro/BuiltinMacroLibrary';
+import { registerBuiltinMacroCommands } from './macro/builtinMacroCommands';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "vcode" is now active!');
@@ -12,7 +14,18 @@ export function activate(context: vscode.ExtensionContext) {
 	console.log('Registering Macro Feature...');
 	const macroManager = new MacroManager(context);
 	const macroExecutor = new MacroExecutor();
-	registerMacroCommands(context, macroManager, macroExecutor);
+
+	// Built-in macro library shipped with the extension
+	console.log('Loading Built-in Macros...');
+	const builtinMacroLibrary = new BuiltinMacroLibrary(context, macroManager);
+	context.subscriptions.push({ dispose: () => builtinMacroLibrary.dispose() });
+	builtinMacroLibrary.load().then(
+		macros => console.log(`Loaded ${macros.length} built-in macros`),
+		error => console.error('Failed to load built-in macros:', error)
+	);
+
+	registerMacroCommands(context, macroManager, macroExecutor, builtinMacroLibrary);
+	registerBuiltinMacroCommands(context, macroManager, macroExecutor, builtinMacroLibrary);
 
 	// Macro File Loader
 	console.log('Registering Macro File Loader...');

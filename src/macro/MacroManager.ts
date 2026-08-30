@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Macro } from './types';
+import { Macro, MacroRuntime } from './types';
 
 /**
  * Manages macro definitions and persists them to VS Code settings
@@ -8,6 +8,7 @@ export class MacroManager {
     private static readonly CONFIG_KEY = 'vcode.macros';
     private macros: Macro[] = [];
     private fileMacros: Map<string, Macro> = new Map();
+    private builtinMacros: Map<string, Macro> = new Map();
 
     private _onDidChangeMacros = new vscode.EventEmitter<void>();
     public readonly onDidChangeMacros = this._onDidChangeMacros.event;
@@ -30,8 +31,35 @@ export class MacroManager {
      * Register a macro loaded from a file
      */
     registerFileMacro(macro: Macro): void {
-        this.fileMacros.set(macro.id, macro);
+        this.fileMacros.set(macro.id, { ...macro, source: 'file' });
         this._onDidChangeMacros.fire();
+    }
+
+    /**
+     * Register a macro shipped with the extension
+     */
+    registerBuiltinMacro(macro: Macro): void {
+        this.builtinMacros.set(macro.id, { ...macro, source: 'builtin' });
+        this._onDidChangeMacros.fire();
+    }
+
+    /**
+     * Remove all macros shipped with the extension (before a reload)
+     */
+    clearBuiltinMacros(): void {
+        if (this.builtinMacros.size === 0) {
+            return;
+        }
+
+        this.builtinMacros.clear();
+        this._onDidChangeMacros.fire();
+    }
+
+    /**
+     * Get the macros shipped with the extension
+     */
+    getBuiltinMacros(): Macro[] {
+        return Array.from(this.builtinMacros.values());
     }
 
     /**
@@ -48,7 +76,7 @@ export class MacroManager {
     private loadMacros(): void {
         const config = vscode.workspace.getConfiguration();
         const stored = config.get<Macro[]>(MacroManager.CONFIG_KEY);
-        this.macros = stored || this.getDefaultMacros();
+        this.macros = (stored || []).map(macro => ({ ...macro, source: 'config' as const }));
     }
 
     /**
@@ -56,77 +84,43 @@ export class MacroManager {
      */
     private async saveMacros(): Promise<void> {
         const config = vscode.workspace.getConfiguration();
-        await config.update(MacroManager.CONFIG_KEY, this.macros, vscode.ConfigurationTarget.Global);
+        // `source` is derived at load time, it does not belong in settings
+        const persisted = this.macros.map(({ source, ...macro }) => macro);
+        await config.update(MacroManager.CONFIG_KEY, persisted, vscode.ConfigurationTarget.Global);
     }
 
     /**
-     * Get default example macros
-     */
-    private getDefaultMacros(): Macro[] {
-        return [
-            {
-                id: this.generateId(),
-                name: 'Uppercase',
-                description: 'Convert text to uppercase',
-                code: 'function transform(input) { return input.toUpperCase(); }',
-                createdAt: Date.now(),
-                runtime: 'javascript'
-            },
-            {
-                id: this.generateId(),
-                name: 'Lowercase',
-                description: 'Convert text to lowercase',
-                code: 'function transform(input) { return input.toLowerCase(); }',
-                createdAt: Date.now(),
-                runtime: 'javascript'
-            },
-            {
-                id: this.generateId(),
-                name: 'Remove Whitespace',
-                description: 'Remove all whitespace from code',
-                code: 'function transform(input) { return input.replace(/\\s+/g, " ").trim(); }',
-                createdAt: Date.now(),
-                runtime: 'javascript'
-            },
-            {
-                id: this.generateId(),
-                name: 'Sort Lines',
-                description: 'Sort lines alphabetically',
-                code: 'function transform(input) { return input.split("\\n").sort().join("\\n"); }',
-                createdAt: Date.now(),
-                runtime: 'javascript'
-            }
-        ];
-    }
-
-    /**
-     * Get all macros (config-based + file-based)
+     * Get all macros (config-based + file-based + built-in)
      */
     getMacros(): Macro[] {
-        return [...this.macros, ...Array.from(this.fileMacros.values())];
+        return [
+            ...this.macros,
+            ...Array.from(this.fileMacros.values()),
+            ...Array.from(this.builtinMacros.values())
+        ];
     }
 
     /**
      * Get a macro by ID
      */
     getMacro(id: string): Macro | undefined {
-        return this.macros.find(m => m.id === id) || this.fileMacros.get(id);
+        return this.macros.find(m => m.id === id) || this.fileMacros.get(id) || this.builtinMacros.get(id);
     }
 
     /**
      * Add a new macro
      */
-    async addMacro(name: string, description: string, code: string): Promise<Macro> {
+    async addMacro(name: string, description: string, code: string, runtime: MacroRuntime = 'javascript'): Promise<Macro> {
         const macro: Macro = {
             id: this.generateId(),
             name,
             description,
             code,
             createdAt: Date.now(),
-            runtime: 'javascript'
+            runtime
         };
 
-        this.macros.push(macro);
+        this.macros.push({ ...macro, source: 'config' });
         await this.saveMacros();
         this._onDidChangeMacros.fire();
         return macro;
@@ -140,6 +134,11 @@ export class MacroManager {
         if (this.fileMacros.has(id)) {
             // We can't update file macros through this method, they must be edited on disk
             // Or we could implement writing back to file here
+            return false;
+        }
+
+        // Built-in macros ship with the extension and are read-only
+        if (this.builtinMacros.has(id)) {
             return false;
         }
 
@@ -164,6 +163,11 @@ export class MacroManager {
     async deleteMacro(id: string): Promise<boolean> {
         if (this.fileMacros.has(id)) {
             // Cannot delete file macros via settings
+            return false;
+        }
+
+        if (this.builtinMacros.has(id)) {
+            // Cannot delete macros that ship with the extension
             return false;
         }
 

@@ -10,12 +10,12 @@ JavaScript and Python macros are functions that take the input text and a `conte
 
 ```javascript
 function transform(input, context) {
-    // Your logic here
-    const text = input;
+  // Your logic here
+  const text = input;
 
-    // ... transformation ...
+  // ... transformation ...
 
-    return text.toUpperCase();
+  return text.toUpperCase();
 }
 ```
 
@@ -37,16 +37,17 @@ local $/;
 my $input = <STDIN> // q{};
 print $input;
 ```
+
 ### The `context` Object
 
 The `context` object passed to your macro contains the following properties:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `input` | `string` | The currently selected text in the editor. If no text is selected, it contains the entire document content. |
-| `languageId` | `string` | The language ID of the active document (e.g., `typescript`, `python`, `json`). |
-| `filePath` | `string` | The absolute file path of the active document. |
-| `globals` | `object` | Global variables from `vcode.macro.globals` settings. |
+| Property     | Type     | Description                                                                                                 |
+| ------------ | -------- | ----------------------------------------------------------------------------------------------------------- |
+| `input`      | `string` | The currently selected text in the editor. If no text is selected, it contains the entire document content. |
+| `languageId` | `string` | The language ID of the active document (e.g., `typescript`, `python`, `json`).                              |
+| `filePath`   | `string` | The absolute file path of the active document.                                                              |
+| `globals`    | `object` | Global variables from `vcode.macro.globals` settings.                                                       |
 
 For Perl macros, the context is available through environment variables:
 
@@ -55,7 +56,8 @@ For Perl macros, the context is available through environment variables:
 - `VCODE_GLOBALS_JSON`
 - `VCODE_CONTEXT_JSON`
 - `VCODE_PARAMS_JSON`
-Note: `VCODE_CONTEXT_JSON` includes metadata (languageId, filePath, globals). The input text is provided via stdin.
+  Note: `VCODE_CONTEXT_JSON` includes metadata (languageId, filePath, globals). The input text is provided via stdin.
+
 ### Global Variables
 
 You can define global variables in settings and access them in any macro via `context.globals`.
@@ -72,32 +74,37 @@ You can define global variables in settings and access them in any macro via `co
 ## Examples (JavaScript)
 
 ### 1. Convert to JSON String
+
 Takes the selected text and wraps it as a JSON string.
 
 ```javascript
 function transform(input, context) {
-    try {
-        // Assume input is a raw string or object to be stringified
-        // If it's code, we might want to just quote it
-        return JSON.stringify(input);
-    } catch (e) {
-        return input;
-    }
+  try {
+    // Assume input is a raw string or object to be stringified
+    // If it's code, we might want to just quote it
+    return JSON.stringify(input);
+  } catch (e) {
+    return input;
+  }
 }
 ```
 
 ### 2. Wrap in Try-Catch
+
 Wraps the selected code in a `try-catch` block.
 
 ```javascript
 function transform(input, context) {
-    const code = input;
-    const indentation = "    "; // You might want to detect indentation
+  const code = input;
+  const indentation = "    "; // You might want to detect indentation
 
-    // Indent the original code
-    const indentedCode = code.split('\n').map(line => indentation + line).join('\n');
+  // Indent the original code
+  const indentedCode = code
+    .split("\n")
+    .map((line) => indentation + line)
+    .join("\n");
 
-    return `try {
+  return `try {
 ${indentedCode}
 } catch (error) {
 ${indentation}console.error(error);
@@ -106,20 +113,76 @@ ${indentation}console.error(error);
 ```
 
 ### 3. Create Logger
+
 Inserts a console log with the file name.
 
 ```javascript
 function transform(input, context) {
-    // Use path module if available or simple string manipulation
-    const fileName = context.filePath ? context.filePath.split(/[\\/]/).pop() : 'unknown';
+  // Use path module if available or simple string manipulation
+  const fileName = context.filePath
+    ? context.filePath.split(/[\\/]/).pop()
+    : "unknown";
 
-    return `console.log('[${fileName}] ${input}', ${input});`;
+  return `console.log('[${fileName}] ${input}', ${input});`;
 }
 ```
 
+## Built-in Macro Library
+
+VCode ships a set of ready-to-use JavaScript macros in the extension's `snippets/macros` folder. They are loaded at startup and listed together with your own macros, marked as **Built-in**.
+
+| Category   | Macros                                                                         |
+| ---------- | ------------------------------------------------------------------------------ |
+| Text       | Uppercase, Lowercase                                                           |
+| Lines      | Sort Lines, Remove Duplicate Lines, Remove Empty Lines, Trim Lines, Join Lines |
+| Encoding   | Encode URL, Decode URL, Base64 Encode, Base64 Decode                           |
+| JSON       | Format JSON, Minify JSON, Escape as JSON String, Unescape JSON String          |
+| Naming     | camelCase to snake_case, snake_case to camelCase                               |
+| SQL        | Format SQL, Lines to SQL IN List                                               |
+| JavaScript | Wrap in Try/Catch, String to Template Literal, Wrap in console.log             |
+| Date       | Dates to ISO                                                                   |
+
+Use `VCode: Browse Built-in Macros` to run one, open its source, copy its code, or save an editable copy into your workspace macro folder. `VCode: Reload Built-in Macros` re-reads the library (also done by `VCode: Refresh Macros`).
+
+### Settings
+
+```json
+{
+  "vcode.macro.builtins.enabled": true,
+  "vcode.macro.builtins.exclude": ["Format SQL", "base64-encode.js"]
+}
+```
+
+- `vcode.macro.builtins.enabled` - set to `false` to hide the whole library.
+- `vcode.macro.builtins.exclude` - hide individual macros by display name or file name.
+
+### Metadata Header
+
+Each bundled script declares its metadata in a header comment. The tags are comment-syntax agnostic, so the same header works for `.js`, `.py`, and `.pl` macros:
+
+```javascript
+/**
+ * @name Format SQL
+ * @description Normalize whitespace and start each SQL keyword on a new line.
+ * @category SQL
+ */
+function transform(input, context) {
+  // ...
+}
+```
+
+Missing tags fall back to the file name, a generated description, and the `General` category. Adding a script to `snippets/macros` is all it takes to contribute a new built-in macro - no registration code is needed.
+
 ## Managing Macros
 
+### Starting From a Built-in Macro
+
+1. Run `VCode: Copy Built-in Macro to Workspace`.
+2. Pick a macro - it is written to the first folder in `vcode.macro.directories` (`.vscode/macro` by default) and opened.
+3. Edit it; the file watcher reloads it automatically.
+
 ### Creating Macros
+
 1. Open the **Macro Playground** from the VCode activity bar.
 2. Click the `+` icon or use the command `VCode: Add Macro`.
 3. Give your macro a name and description.
@@ -127,7 +190,9 @@ function transform(input, context) {
 5. Save.
 
 ### Loading from Files
+
 VCode automatically loads `.js`, `.py`, and `.pl` files from the `.vscode/macro` directory in your workspace.
+
 1. Create a folder `.vscode/macro`.
 2. Create a file, e.g., `my-macro.js`, `my-macro.py`, or `my-macro.pl`.
 3. Define a `transform` function (JavaScript/Python) or a standalone program (Perl).
@@ -142,7 +207,9 @@ Python macros run using the configured interpreter. If you use a virtual environ
 ## Perl Interpreter
 
 Perl macros run using the configured Perl interpreter. If needed, set `vcode.macro.perl.path` to the `perl` binary path. If unset, VCode uses `perl` from PATH.
+
 ## Best Practices
+
 - **Error Handling:** Wrap your macro logic in `try-catch` blocks to prevent breaking the extension if the macro fails.
 - **Idempotency:** Try to make macros safe to run multiple times (e.g., check if code is already wrapped before wrapping again).
 - **Async:** Macros can be `async` functions if you need to perform asynchronous operations (though simple text transformation usually doesn't require it).

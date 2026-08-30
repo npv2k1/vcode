@@ -4,6 +4,7 @@ VCode is a focused VS Code extension for macro automation: load, manage, and run
 
 ## Highlights
 
+- Built-in macro library shipped with the extension - useful macros with zero setup
 - Macro Playground for rapid experimentation
 - File-based macros from `.vscode/macro`
 - Quick execution on selection or whole document
@@ -23,6 +24,28 @@ module.exports = (context) => {
 3. Open Command Palette and run `VCode: Execute Macro`.
 4. Pick `uppercase` and see the selection change.
 
+## Built-in Macros
+
+VCode ships with a library of common macros (`snippets/macros` in the extension), loaded automatically at startup. They appear alongside your own macros in `VCode: Execute Macro` and in the Macro Playground, tagged as **Built-in**.
+
+Run `VCode: Browse Built-in Macros` to pick one by category and then choose to:
+
+- **Run on selection** - apply it right away
+- **Copy to workspace** - save an editable copy in `.vscode/macro`
+- **Open source** - read the bundled script
+- **Copy code to clipboard**
+
+The library covers text and line operations (sort, dedupe, trim, join), encoding (URL, base64), JSON (format, minify, escape), naming (`camelCase` <-> `snake_case`), SQL (format, IN list), JavaScript helpers (try/catch, template literal, `console.log`), and date conversion. All built-in macros are JavaScript, so they run in-process without any interpreter.
+
+Built-in macros are read-only. To customise one, copy it to your workspace and edit the copy.
+
+```json
+{
+  "vcode.macro.builtins.enabled": true,
+  "vcode.macro.builtins.exclude": ["Format SQL", "base64-encode.js"]
+}
+```
+
 ## Commands
 
 - `VCode: Execute Macro`
@@ -31,6 +54,9 @@ module.exports = (context) => {
 - `VCode: Delete Macro`
 - `VCode: Refresh Macros`
 - `VCode: Open Macro Playground`
+- `VCode: Browse Built-in Macros`
+- `VCode: Copy Built-in Macro to Workspace`
+- `VCode: Reload Built-in Macros`
 
 ## Extension Settings
 
@@ -46,7 +72,9 @@ You can configure VCode settings in your `.vscode/settings.json` or User Setting
     "apiBase": "https://example.com"
   },
   "vcode.macro.python.path": "/path/to/venv/bin/python3",
-  "vcode.macro.perl.path": "/usr/bin/perl"
+  "vcode.macro.perl.path": "/usr/bin/perl",
+  "vcode.macro.builtins.enabled": true,
+  "vcode.macro.builtins.exclude": []
 }
 ```
 

@@ -12,6 +12,9 @@ Thanks for taking the time to contribute!
 
 - Open this repo in VS Code.
 - Press `F5` to start an Extension Development Host.
+- Or run `pnpm run debug` to compile and launch an Extension Development Host in a
+  blank, temporary profile with all other extensions disabled. The profile is
+  discarded when the window closes, so nothing leaks into your normal setup.
 - Use the Command Palette to run `VCode: Open Macro Playground`.
 
 ## Project Structure

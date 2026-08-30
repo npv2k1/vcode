@@ -2,7 +2,7 @@
   "name": "vcode-macro",
   "displayName": "vcode",
   "description": "macro automation and playground for VS Code",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "npv2k1",
   "license": "MIT",
   "repository": {
@@ -72,6 +72,21 @@
         "command": "vcode.openMacroPlayground",
         "title": "Open Macro Playground",
         "category": "VCode"
+      },
+      {
+        "command": "vcode.browseBuiltinMacros",
+        "title": "Browse Built-in Macros",
+        "category": "VCode"
+      },
+      {
+        "command": "vcode.installBuiltinMacro",
+        "title": "Copy Built-in Macro to Workspace",
+        "category": "VCode"
+      },
+      {
+        "command": "vcode.reloadBuiltinMacros",
+        "title": "Reload Built-in Macros",
+        "category": "VCode"
       }
     ],
     "submenus": [
@@ -90,6 +105,10 @@
       "vcode.submenu": [
         {
           "command": "vcode.executeMacro",
+          "group": "macro"
+        },
+        {
+          "command": "vcode.browseBuiltinMacros",
           "group": "macro"
         },
         {
@@ -197,6 +216,19 @@
           "type": "string",
           "default": "",
           "description": "Absolute path to the Perl interpreter used for Perl macros. If empty, VCode uses 'perl' on PATH."
+        },
+        "vcode.macro.builtins.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Load the common macros that ship with the extension (Browse Built-in Macros)."
+        },
+        "vcode.macro.builtins.exclude": {
+          "type": "array",
+          "default": [],
+          "description": "Built-in macros to hide, by display name or file name (for example \"Format SQL\" or \"format-sql.js\").",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }
@@ -205,6 +237,7 @@
     "vscode:prepublish": "pnpm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "debug": "pnpm run compile && code --extensionDevelopmentPath=. --profile-temp --disable-extensions --new-window",
     "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src",
     "test": "vscode-test",

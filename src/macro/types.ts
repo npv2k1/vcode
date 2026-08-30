@@ -5,6 +5,9 @@ import * as vscode from 'vscode';
  */
 export type MacroRuntime = 'javascript' | 'python' | 'perl';
 
+/** Where a macro came from */
+export type MacroSource = 'config' | 'file' | 'builtin';
+
 export interface Macro {
     /** Unique identifier for the macro */
     id: string;
@@ -21,6 +24,24 @@ export interface Macro {
     createdAt: number;
     /** Path to the macro file (if loaded from file) */
     filePath?: string;
+    /** Where the macro came from (defaults to config) */
+    source?: MacroSource;
+    /** Grouping label, used by the built-in macro library */
+    category?: string;
+    /** Original file name (built-in and file macros) */
+    fileName?: string;
+}
+
+/**
+ * Metadata declared in the header of a built-in macro script
+ */
+export interface BuiltinMacroMetadata {
+    /** Display name of the macro */
+    name: string;
+    /** Description of what the macro does */
+    description: string;
+    /** Grouping label shown when browsing the library */
+    category: string;
 }
 
 /**

@@ -2,11 +2,27 @@ import * as vscode from 'vscode';
 import { Macro } from './types';
 import { MacroManager } from './MacroManager';
 import { MacroExecutor } from './MacroExecutor';
+import { runMacroInActiveEditor } from './macroRunner';
+import { BuiltinMacroLibrary } from './BuiltinMacroLibrary';
+
+/**
+ * Human readable label for where a macro comes from
+ */
+export function describeMacroSource(macro: Macro): string {
+    if (macro.source === 'builtin') {
+        return `Built-in${macro.category ? ` · ${macro.category}` : ''}`;
+    }
+    if (macro.source === 'file' || macro.id.startsWith('file-')) {
+        return macro.filePath ? `File · ${macro.filePath}` : 'File';
+    }
+    return 'User';
+}
 
 export function registerMacroCommands(
     context: vscode.ExtensionContext,
     macroManager: MacroManager,
-    macroExecutor: MacroExecutor
+    macroExecutor: MacroExecutor,
+    builtinLibrary?: BuiltinMacroLibrary
 ): void {
 
     // Execute Macro Command
@@ -30,10 +46,13 @@ export function registerMacroCommands(
                 macros.map(m => ({
                     label: m.name,
                     description: m.description,
+                    detail: describeMacroSource(m),
                     macro: m
                 })),
                 {
-                    placeHolder: 'Select a macro to execute'
+                    placeHolder: 'Select a macro to execute',
+                    matchOnDescription: true,
+                    matchOnDetail: true
                 }
             );
 
@@ -41,70 +60,7 @@ export function registerMacroCommands(
                 return;
             }
 
-            // Get input text (selection or entire document)
-            const document = editor.document;
-            const selection = editor.selection;
-            const input = selection.isEmpty ? document.getText() : document.getText(selection);
-
-            // Extract parameters from macro code (automatically skips 'input' and 'context')
-            const runtime = selected.macro.runtime ?? (() => {
-                if (!selected.macro.filePath) {
-                    return 'javascript';
-                }
-                const lowerPath = selected.macro.filePath.toLowerCase();
-                if (lowerPath.endsWith('.py')) {
-                    return 'python';
-                }
-                if (lowerPath.endsWith('.pl')) {
-                    return 'perl';
-                }
-                return 'javascript';
-            })();
-            const paramNames = runtime === 'javascript' ? macroExecutor.extractParameters(selected.macro.code) : [];
-            const paramValues: any[] = [];
-
-            // Prompt for each additional parameter (input and context are auto-provided)
-            for (let i = 0; i < paramNames.length; i++) {
-                const paramName = paramNames[i];
-                const value = await vscode.window.showInputBox({
-                    prompt: `Parameter ${i + 1} of ${paramNames.length}: "${paramName}"`,
-                    placeHolder: `Enter value for ${paramName}`,
-                    title: `Macro: ${selected.macro.name}`
-                });
-
-                if (value === undefined) {
-                    // User cancelled
-                    return;
-                }
-
-                paramValues.push(value);
-            }
-
-            // Execute macro
-            const result = await macroExecutor.execute(selected.macro, {
-                input,
-                languageId: document.languageId,
-                filePath: document.uri.fsPath
-            }, paramValues);
-
-            if (!result.success) {
-                vscode.window.showErrorMessage(`Macro execution failed: ${result.error}`);
-                return;
-            }
-
-            // Replace text with output
-            await editor.edit(editBuilder => {
-                if (selection.isEmpty) {
-                    const firstLine = document.lineAt(0);
-                    const lastLine = document.lineAt(document.lineCount - 1);
-                    const range = new vscode.Range(firstLine.range.start, lastLine.range.end);
-                    editBuilder.replace(range, result.output!);
-                } else {
-                    editBuilder.replace(selection, result.output!);
-                }
-            });
-
-            vscode.window.showInformationMessage(`Macro "${selected.macro.name}" executed successfully`);
+            await runMacroInActiveEditor(selected.macro, macroExecutor);
         })
     );
 
@@ -176,9 +132,9 @@ export function registerMacroCommands(
     // Edit Macro Command
     context.subscriptions.push(
         vscode.commands.registerCommand('vcode.editMacro', async () => {
-            const macros = macroManager.getMacros();
+            const macros = macroManager.getMacros().filter(m => m.source !== 'builtin');
             if (macros.length === 0) {
-                vscode.window.showInformationMessage('No macros available.');
+                vscode.window.showInformationMessage('No editable macros available. Built-in macros are read-only.');
                 return;
             }
 
@@ -268,9 +224,9 @@ export function registerMacroCommands(
     // Delete Macro Command
     context.subscriptions.push(
         vscode.commands.registerCommand('vcode.deleteMacro', async () => {
-            const macros = macroManager.getMacros();
+            const macros = macroManager.getMacros().filter(m => m.source !== 'builtin');
             if (macros.length === 0) {
-                vscode.window.showInformationMessage('No macros available.');
+                vscode.window.showInformationMessage('No deletable macros available. Built-in macros are read-only.');
                 return;
             }
 
@@ -311,9 +267,14 @@ export function registerMacroCommands(
 
     // Refresh Macros Command
     context.subscriptions.push(
-        vscode.commands.registerCommand('vcode.refreshMacros', () => {
+        vscode.commands.registerCommand('vcode.refreshMacros', async () => {
             macroManager.reload();
-            vscode.window.showInformationMessage('Macros reloaded from settings');
+            const builtins = await builtinLibrary?.load();
+            vscode.window.showInformationMessage(
+                builtins
+                    ? `Macros reloaded (${builtins.length} built-in)`
+                    : 'Macros reloaded from settings'
+            );
         })
     );
 }
